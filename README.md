@@ -1,41 +1,94 @@
 # IoT Monolithic Software Architecture - Laboratory
 
 This project is designed as an IoT Monolithic Software Architecture Laboratory with the step by step
-implementation of a simple IoT application using a monolithic architecture. 
-The application is structured into different modules, 
+implementation of a simple IoT application using a monolithic architecture.
+The application is structured into different modules,
 each responsible for specific functionalities, ensuring modularity, scalability, and maintainability.
 
-The architecture is divided into 4 distinct layers, 
-each responsible for specific functionalities, ensuring modularity, 
+The architecture is divided into 4 distinct layers,
+each responsible for specific functionalities, ensuring modularity,
 scalability, and maintainability.
 
-This Laboratory is a "simplified" version of the Playground available at [https://github.com/Distributed-IoT-Software-Arch-Course/iot-monolithic-arch-playground](https://github.com/Distributed-IoT-Software-Arch-Course/iot-monolithic-arch-playground)
+This Laboratory is a "simplified" version of the IoT Monolithic Architecture Playground
+([https://github.com/Distributed-IoT-Software-Arch-Course/iot-monolithic-arch-playground](https://github.com/Distributed-IoT-Software-Arch-Course/iot-monolithic-arch-playground))
 where in this case we handle only telemetry data instead of a more complex IoT architecture.
+
+Reference Libraries: Flask & Flask-RESTful (Web Server and RESTful API) - Paho MQTT 2.x (MQTT Data Fetcher) - https://github.com/eclipse/paho.mqtt.python
+
+## Setup
+
+The project is managed with [uv](https://docs.astral.sh/uv/). Dependencies are declared in `pyproject.toml`,
+locked in `uv.lock`, and the Python version (3.12) is pinned in `.python-version`.
+
+- Dependencies: `flask` and `flask-restful` (Web Server and RESTful API), `paho-mqtt` 2.x (MQTT Data Fetcher and
+  MQTT testers) and `pyyaml` (configuration files)
+
+Install uv (if needed) following the [official instructions](https://docs.astral.sh/uv/getting-started/installation/), e.g.:
+
+```bash
+curl -LsSf https://astral.sh/uv/install.sh | sh
+```
+
+Then, from the project root, create the virtual environment (`.venv`) and install all the dependencies with:
+
+```bash
+uv sync
+```
+
+uv automatically downloads the required Python version if it is not available on your machine.
+The command also installs the `iot_monolithic_laboratory` package (in `src/`) in editable mode, together with a
+dedicated command for the application and for each tester (see [Running the Application](#running-the-application)).
+
+In PyCharm, you can select the existing `.venv` interpreter or add a new "uv" interpreter from the interpreter settings.
+
+### Using pip (alternative)
+
+The `requirements.txt` file is **generated** from `uv.lock` and is kept only for pip-based workflows:
+
+```bash
+pip install -r requirements.txt
+```
+
+Do not edit it manually. After changing the dependencies, regenerate it with:
+
+```bash
+uv export --no-hashes --no-dev -o requirements.txt
+```
+
+### MQTT Broker
+
+The MQTT Data Fetcher and the MQTT testers require a running MQTT Broker, configured in `config/mqtt_fetcher_conf.yaml`
+(default: `127.0.0.1:1883` without authentication). A local [Eclipse Mosquitto](https://mosquitto.org/) broker can be
+installed natively or started with Docker:
+
+```bash
+docker run -it --rm -p 1883:1883 eclipse-mosquitto:2 mosquitto -c /mosquitto-no-auth.conf
+```
 
 ## n-Tier Architecture Overview
 
-Designing an n-Tier Software Architecture for an Internet of Things (IoT) 
-application involves separating concerns into different layers, each responsible for specific aspects of the system. 
-Below is a proposed architecture that meets the specified requirements for the target Playground and Example:
+Designing an n-Tier Software Architecture for an Internet of Things (IoT)
+application involves separating concerns into different layers, each responsible for specific aspects of the system.
+Below is a proposed architecture that meets the specified requirements for the target Laboratory:
 
-The idea of the architecture (using the framework [https://mermaid.js.org/](https://mermaid.js.org/)) is the following: 
+The idea of the architecture (using the framework [https://mermaid.js.org/](https://mermaid.js.org/)) is the following:
 
 ```mermaid
 graph TD
   subgraph Presentation-Layer
     A1[Telemetry Web Interface]
   end
-  
+
   subgraph Communication-Layer
     B1[Web Server]
     B2[RESTful API]
     B3[MQTT Data Fetcher]
   end
-  
+
   subgraph Application-Layer
     C1[Core Manager]
   end
-  
+
   subgraph DataAccess-Layer
     D2[Data Management]
   end
@@ -47,22 +100,82 @@ graph TD
 
 ## System Architecture Description
 
-The system architecture is structured into five distinct layers, each responsible for specific functionalities, 
+The system architecture is structured into four distinct layers, each responsible for specific functionalities,
 ensuring a modular and scalable design for the Internet of Things (IoT) application. The layers are as follows:
 
 ### 1. Presentation Layer
-- **Web Interface**: This component provides the user interface for the system, allowing users to interact with the application through a web browser. It displays device information, telemetry data, and other relevant details.
+- **Web Interface**: This component provides the user interface for the system, allowing users to interact with the application through a web browser. It displays the telemetry data of the devices.
 
 ### 2. Communication Layer
 - **Web Server**: Handles HTTP requests from the Web Interface and other clients. It serves static and dynamic content and manages incoming and outgoing web traffic.
 - **RESTful API**: Exposes system functionalities and data through RESTful endpoints, allowing external applications to interact with the system programmatically.
-- **MQTT Data Fetcher**: Manages MQTT communication, subscribing to MQTT topics to collect device information and telemetry data from various devices.
+- **MQTT Data Fetcher**: Manages MQTT communication, subscribing to MQTT topics to collect telemetry data from the devices.
 
 ### 3. Application Layer
-- **Core Services**: Implements the business logic of the application. It processes data received from the Communication Layer, executes core application functionalities, and manages the flow of information between different layers.
+- **Core Manager**: Implements the business logic of the application. It processes data received from the Communication Layer, executes core application functionalities, and manages the flow of information between different layers.
 
 ### 4. Data Access Layer
 - **Data Management**: Provides an abstraction layer for data access. It handles CRUD operations (Create, Read, Update, Delete) and ensures data integrity and consistency when interacting with the underlying storage systems.
+
+The layers are **closed**: each layer only interacts with the layer directly below it, and it only uses the data
+structures defined by that layer or by itself. For this reason the Communication Layer converts the data received from
+the devices (Data Transfer Objects) into the domain model of the Application Layer before handing it over.
+
+## Project Structure
+
+The project follows the `src` layout: all the code is in the `iot_monolithic_laboratory` package, organized in one
+sub-package for each layer of the architecture.
+
+```
+iot-monolithic-arch-laboratory/
+├── pyproject.toml                      # Project metadata, dependencies and entry points
+├── uv.lock                             # Locked dependency versions (managed by uv)
+├── requirements.txt                    # Generated from uv.lock for pip users
+├── config/                             # Configuration files of the modules
+│   ├── api_conf.yaml
+│   ├── web_conf.yaml
+│   └── mqtt_fetcher_conf.yaml
+└── src/iot_monolithic_laboratory/
+    ├── main.py                         # Entry point: creates the layers and starts the modules
+    ├── config/                         # ConfigLoader (reads the YAML files of config/)
+    ├── data/                           # Data Access Layer: DataManager
+    ├── application/                    # Application Layer: CoreManager and the TelemetryModel
+    ├── communication/                  # Communication Layer
+    │   ├── mqtt/                       # MQTT Data Fetcher and the TelemetryMessage DTO
+    │   ├── api/                        # RESTful API Server and the Telemetry Data resource
+    │   └── web/                        # Web Server
+    ├── presentation/                   # Presentation Layer: HTML template
+    └── tester/mqtt/                    # Emulated MQTT devices and telemetry consumer
+```
+
+The project is declared in `pyproject.toml`, with its dependencies and a command for each process:
+
+```toml
+[project]
+name = "iot-monolithic-arch-laboratory"
+version = "0.1.0"
+description = "IoT Monolithic Architecture Laboratory - n-Tier IoT application collecting and exposing the telemetry of IoT devices"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "flask>=2.3,<3",
+    "flask-restful>=0.3.10",
+    "paho-mqtt>=2.1,<3",
+    "pyyaml>=6.0",
+]
+
+[project.scripts]
+iot-monolith = "iot_monolithic_laboratory.main:main"
+mqtt-device-producer = "iot_monolithic_laboratory.tester.mqtt.json_producer:main"
+mqtt-telemetry-consumer = "iot_monolithic_laboratory.tester.mqtt.json_consumer:main"
+
+[build-system]
+requires = ["uv_build>=0.13.0,<0.14"]
+build-backend = "uv_build"
+
+[tool.uv.build-backend]
+module-name = "iot_monolithic_laboratory"
+```
 
 ## Implementation
 
@@ -74,14 +187,112 @@ with the idea of each layer to be independent and to interact with the previous 
 - Communication Layer
 - Presentation Layer
 
+All the modules are created in the `src/iot_monolithic_laboratory` package: each folder is a Python package
+(with an `__init__.py` file) and the modules are imported with absolute imports starting from the package name
+(e.g., `from iot_monolithic_laboratory.data.data_manager import DataManager`).
+
+### Configuration Loader
+
+Each module of the Communication Layer reads its parameters from a YAML file of the `config/` folder.
+The `ConfigLoader` class, in the `config` package, finds the file (in the current working directory or in the project
+root, so the application can be started from any folder) and merges its values over the default configuration of the
+module. Create the file `config/config_loader.py` with the following content:
+
+```python
+from pathlib import Path
+from typing import Any
+
+import yaml
+
+
+class ConfigLoader:
+    """
+    ConfigLoader class loads the YAML configuration files of the application (e.g., config/api_conf.yaml).
+
+    A relative path is searched in the current working directory and, if not found, in the project root directory,
+    so the application can be started from any folder.
+    """
+
+    # Project root directory: src/iot_monolithic_laboratory/config/config_loader.py -> 3 levels up
+    PROJECT_ROOT_DIR = Path(__file__).resolve().parents[3]
+
+    @classmethod
+    def resolve_path(cls, config_file: str | Path) -> Path:
+        """
+        Resolve the path of a configuration file
+        :param config_file: Absolute path or path relative to the working directory or to the project root
+        :return: The path of the existing configuration file
+        """
+
+        config_path = Path(config_file)
+        if config_path.is_absolute():
+            candidate_paths = [config_path]
+        else:
+            candidate_paths = [Path.cwd() / config_path, cls.PROJECT_ROOT_DIR / config_path]
+
+        for candidate_path in candidate_paths:
+            if candidate_path.is_file():
+                return candidate_path
+
+        raise FileNotFoundError(f"Configuration file not found. Searched in: {[str(p) for p in candidate_paths]}")
+
+    @classmethod
+    def load(cls, config_file: str | Path, default_configuration: dict[str, Any] | None = None) -> dict[str, Any]:
+        """
+        Load a YAML configuration file, merging its values over the default configuration
+        :param config_file: Path of the YAML file (see resolve_path)
+        :param default_configuration: Default values used for the parameters not defined in the file
+        :return: The configuration dictionary
+        """
+
+        configuration: dict[str, Any] = dict(default_configuration or {})
+
+        config_path = cls.resolve_path(config_file)
+        with open(config_path, "r", encoding="utf-8") as file:
+            file_configuration = yaml.safe_load(file) or {}
+
+        # Merge the file values over the defaults (one level of nested sections, e.g., "rest" or "web")
+        for key, value in file_configuration.items():
+            if isinstance(value, dict) and isinstance(configuration.get(key), dict):
+                configuration[key] = {**configuration[key], **value}
+            else:
+                configuration[key] = value
+
+        print(f"Read Configuration from file ({config_path}): {configuration}")
+        return configuration
+```
+
 ### Data Access Layer
 
 The Data Access Layer is responsible for managing the data of the application and in this scenario is implemented as an in-memory data storage
 storing the telemetry data for each device structured as a Dictionary where the key is the device ID and the value is a list of telemetry data.
 
-Create a new folder `data` and add the following files named `data_manager.py` with the following content:
+The data handled by the application is described by a **domain model** defined by the Application Layer.
+Create the folder `application/model` and add the file `telemetry_model.py` with the following content:
 
 ```python
+import json
+
+
+class TelemetryModel:
+    """ Domain model of a telemetry measurement received from an IoT Device """
+
+    def __init__(self, timestamp: int, data_type: str, value: float) -> None:
+        self.timestamp = timestamp
+        self.data_type = data_type
+        self.value = value
+
+    def to_json(self) -> str:
+        return json.dumps(self, default=lambda o: o.__dict__)
+```
+
+Then create the folder `data` and add the file `data_manager.py` with the following content.
+The data structure is created in the constructor, so each `DataManager` object has its own storage:
+
+```python
+from iot_monolithic_laboratory.application.model.telemetry_model import TelemetryModel
+
+
 class DataManager:
     """
     DataManager class is responsible for managing the data of the application.
@@ -89,60 +300,34 @@ class DataManager:
     In this implementation everything is stored in memory.
     """
 
-    # The data structure to store the telemetry data
-    device_timeseries_data = {}
+    def __init__(self) -> None:
+        # Telemetry data (time series) indexed by the device id
+        self.device_timeseries_data: dict[str, list[TelemetryModel]] = {}
 
-    def add_device_telemetry_data(self, device_id, telemetry_data):
+    def add_device_telemetry_data(self, device_id: str, telemetry_data: TelemetryModel) -> None:
         """Add a new telemetry data for a given device"""
         if device_id not in self.device_timeseries_data:
             self.device_timeseries_data[device_id] = []
         self.device_timeseries_data[device_id].append(telemetry_data)
 
-    def get_telemetry_data_by_device_id(self, device_id):
-        """Return the telemetry data for a given device"""
-        if device_id in self.device_timeseries_data:
-            return self.device_timeseries_data[device_id]
-        else:
-            return None
+    def get_telemetry_data_by_device_id(self, device_id: str) -> list[TelemetryModel] | None:
+        """Return the telemetry data for a given device (None if the device has never sent data)"""
+        return self.device_timeseries_data.get(device_id)
 ```
 
 ### Application Layer
 
-In this simplified implementation version the core module wrap the data access layer and provide the core functionalities of the application.
+In this simplified implementation version the core module wraps the data access layer and provides the core functionalities of the application.
 The idea is to decouple the data access layer from the application layer and provide a more modular and scalable design.
-This additional layer allows for easier testing and maintenance of the application and the introduction of new functionalities 
+This additional layer allows for easier testing and maintenance of the application and the introduction of new functionalities
 without affecting the data access layer.
 
-Since the application layer will use data received from the communication layer, we need to define the data transfer objects (DTOs)
-in a separate folder to ensure a clean separation of concerns. 
-For this reason we create the `communication` folder and then the `dto` folder and add the following files named `telemetry_message.py` 
-with the following content:
+The Application Layer works only with its own domain model (`TelemetryModel`): it does not know how the data has been
+received (e.g., through MQTT or HTTP). In the `application` folder add the file `core_manager.py` with the following content:
 
 ```python
-import json
-
-class TelemetryMessage:
-    """
-    Telemetry Message DTO class
-    mapping the telemetry message data structure with:
-    - timestamp: timestamp of the telemetry message
-    - data_type: type of the telemetry message
-    - value: value of the telemetry message
-    """
-    def __init__(self, timestamp, data_type, value):
-        self.timestamp = timestamp
-        self.data_type = data_type
-        self.value = value
-
-    def to_json(self):
-        return json.dumps(self, default=lambda o: o.__dict__)
-```
-
-Create a new folder `application` and add the following files named `core_manager.py` with the following content:
-
-```python
-from communication.dto.telemetry_message import TelemetryMessage
-from data.data_manager import DataManager
+from iot_monolithic_laboratory.application.model.telemetry_model import TelemetryModel
+from iot_monolithic_laboratory.data.data_manager import DataManager
 
 
 class CoreManager:
@@ -152,21 +337,21 @@ class CoreManager:
     Additional dedicated methods are used to handle telemetry data from devices with a specific application logic
     """
 
-    def __init__(self, data_manager: DataManager):
+    def __init__(self, data_manager: DataManager) -> None:
         """Initialize the CoreManager with a Data Manager"""
         self.data_manager = data_manager
 
-    def handle_mqtt_device_telemetry_data(self, device_id: str, device_telemetry_data: TelemetryMessage):
-        """ Handle telemetry data from device """
+    def handle_device_telemetry_data(self, device_id: str, telemetry_data: TelemetryModel) -> None:
+        """ Handle telemetry data received from a device """
 
-        # Check request not None and instance of TelemetryMessage
-        if device_telemetry_data is None or not isinstance(device_telemetry_data, TelemetryMessage):
-            raise ValueError("Invalid TelemetryMessage")
-        else:
-            self.data_manager.add_device_telemetry_data(device_id, device_telemetry_data)
-            print(f'Telemetry data received from device {device_id}')
+        # Check that the telemetry data is valid
+        if telemetry_data is None or not isinstance(telemetry_data, TelemetryModel):
+            raise ValueError("Invalid Telemetry Data")
 
-    def get_telemetry_data_by_device_id(self, device_id: str):
+        self.data_manager.add_device_telemetry_data(device_id, telemetry_data)
+        print(f'Telemetry data received from device {device_id}')
+
+    def get_telemetry_data_by_device_id(self, device_id: str) -> list[TelemetryModel] | None:
         """
         Get telemetry data by device id from data manager
         :param device_id: Device id associated with telemetry data
@@ -177,475 +362,423 @@ class CoreManager:
 
 ### Communication Layer
 
-The Communication Layer is responsible for handling incoming requests from clients, exposing system functionalities through RESTful API endpoints, 
+The Communication Layer is responsible for handling incoming requests from clients, exposing system functionalities through RESTful API endpoints,
 fetching data from IoT devices using MQTT, and serving the web interface to users.
+Each module runs in a dedicated thread, so the three modules work in parallel inside the same process.
 
 #### MQTT Data Fetcher
 
-In the folder `communication` add a new folder `mqtt` add the following files named `mqtt_data_fetcher.py`.
-The MQTT Data Fetcher Class in charge of fetching data from the MQTT Broker
-The fetcher is executed in a separate thread in order to avoid blocking the main thread.
-Uses a configuration file to read the MQTT Broker configuration and username/password information.
+The telemetry messages published by the devices are JSON payloads with the following structure:
 
-The first part of the class is the following:
+```json
+{"timestamp": 1731877690, "data_type": "TEMPERATURE_SENSOR", "value": 24.527828679520105}
+```
+
+The payload is mapped by a **Data Transfer Object** (DTO) of the Communication Layer.
+Create the folder `communication/mqtt/dto` and add the file `telemetry_message.py` with the following content:
 
 ```python
-from application.core_manager import CoreManager
-from communication.dto.telemetry_message import TelemetryMessage
 import json
+
+
+class TelemetryMessage:
+    """
+    Telemetry Message DTO class mapping the JSON payload of the MQTT telemetry messages:
+    - timestamp: timestamp of the telemetry message
+    - data_type: type of the telemetry message
+    - value: value of the telemetry message
+    """
+
+    def __init__(self, timestamp: int, data_type: str, value: float) -> None:
+        self.timestamp = timestamp
+        self.data_type = data_type
+        self.value = value
+
+    def to_json(self) -> str:
+        return json.dumps(self, default=lambda o: o.__dict__)
+```
+
+In the folder `communication/mqtt` add the file `mqtt_data_fetcher.py`. The MQTT Data Fetcher is in charge of fetching
+data from the MQTT Broker using the Paho MQTT library (2.x):
+
+- the constructor reads the configuration and creates the MQTT client. Paho 2.x requires the **Callback API version**
+  (`mqtt.CallbackAPIVersion.VERSION2`), that defines the signature of the callbacks;
+- `on_connect` subscribes to the telemetry topic only after a **successful connection**. Since it is called again at
+  each automatic reconnection, the subscription is renewed if the connection with the broker is lost;
+- `on_message` extracts the device id from the topic, deserializes the payload into the `TelemetryMessage` DTO,
+  converts it into the `TelemetryModel` of the Application Layer and calls the Core Manager;
+- `start()` uses `connect_async()` and `loop_start()`: the Paho network loop runs in its own background thread and
+  keeps retrying the connection if the broker is not available yet, without blocking the other modules;
+- `stop()` disconnects from the broker and stops the network loop.
+
+```python
+import json
+from typing import Any
+
 import paho.mqtt.client as mqtt
-import yaml
-import os
-import threading
+from paho.mqtt.properties import Properties
+from paho.mqtt.reasoncodes import ReasonCode
+
+from iot_monolithic_laboratory.application.core_manager import CoreManager
+from iot_monolithic_laboratory.application.model.telemetry_model import TelemetryModel
+from iot_monolithic_laboratory.communication.mqtt.dto.telemetry_message import TelemetryMessage
+from iot_monolithic_laboratory.config.config_loader import ConfigLoader
+
 
 class MqttDataFetcher:
-    """ MQTT Data Fetcher Class in charge of fetching data from the MQTT Broker
-    The fetcher is executed in a separate thread in order to avoid blocking the main thread.
-    Uses a configuration file to read the MQTT Broker configuration and username/password information."""
+    """
+    MQTT Data Fetcher of the Communication Layer: it subscribes to the telemetry topic of the devices and forwards
+    the received data to the Application Layer.
+    The Paho network loop runs in its own thread (loop_start), so the fetcher does not block the other modules.
+    """
 
-    def __init__(self, config_file: str, core_manager: CoreManager):
+    # Default configuration, used for the parameters not defined in the configuration file
+    DEFAULT_CONFIGURATION: dict[str, Any] = {
+        "broker_ip": "127.0.0.1",
+        "broker_port": 1883,
+        "client_id": "iot-monolithic-laboratory-fetcher",
+        "target_telemetry_topic": "device/+/temperature",
+        "username": None,
+        "password": None
+    }
 
-        # Fetcher Thread
-        self.fetcher_thread = None
+    def __init__(self, config_file: str, core_manager: CoreManager) -> None:
 
-        # MQTT Client Initialization to None
-        self.client = None
-
-        # Configuration File Path
-        self.config_file = config_file
-
-        # Data Manager
+        # Core Manager of the Application Layer
         self.core_manager = core_manager
 
-        # Default Configuration Dictionary
-        self.configuration_dict = {
-            "broker_ip": "127.0.0.1",
-            "broker_port": 1883,
-            "target_telemetry_topic": "device/+/temperature",
-            "username": None,
-            "password": None
-        }
-
-        # Read Configuration from target Configuration File Path
-        self.read_configuration_file()
+        # Read the configuration from the target configuration file
+        self.configuration_dict = ConfigLoader.load(config_file, self.DEFAULT_CONFIGURATION)
 
         # MQTT Broker Configuration
-        self.mqtt_broker_host = self.configuration_dict["broker_ip"]
-        self.mqtt_broker_port = self.configuration_dict["broker_port"]
-        self.mqtt_topic = self.configuration_dict["target_telemetry_topic"]
-        self.mqtt_username = self.configuration_dict["username"]
-        self.mqtt_password = self.configuration_dict["password"]
+        self.mqtt_broker_host: str = self.configuration_dict["broker_ip"]
+        self.mqtt_broker_port: int = self.configuration_dict["broker_port"]
+        self.mqtt_topic: str = self.configuration_dict["target_telemetry_topic"]
+        self.mqtt_username: str | None = self.configuration_dict["username"]
+        self.mqtt_password: str | None = self.configuration_dict["password"]
 
-        # Initialize MQTT Client
-        self.init_mqtt_client()
-```
+        # Create the MQTT client (Paho 2.x requires the Callback API version)
+        self.client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2, self.configuration_dict["client_id"])
+        self.client.on_connect = self.on_connect
+        self.client.on_disconnect = self.on_disconnect
+        self.client.on_message = self.on_message
 
-Then we need to add the following method to handle the MQTT configuration file (in Yaml):
+    def on_connect(self, client: mqtt.Client, userdata: Any, flags: mqtt.ConnectFlags,
+                   reason_code: ReasonCode, properties: Properties | None) -> None:
+        """ Callback for the CONNACK response of the broker: subscribe only after a successful connection.
+        It is called again at each automatic reconnection, renewing the subscription """
 
-```python
-def read_configuration_file(self):
-    """ Read Configuration File for the REST API Server
-     :return:
-    """
+        if reason_code.is_failure:
+            print(f"MQTT Data Fetcher - Connection refused: {reason_code}")
+            return
 
-    # Get the main communication directory
-    main_app_path = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        print(f"MQTT Data Fetcher - Connected to {self.mqtt_broker_host}:{self.mqtt_broker_port} ({reason_code})")
+        client.subscribe(self.mqtt_topic)
+        print(f"MQTT Data Fetcher - Subscribed to topic: {self.mqtt_topic}")
 
-    # Construct the file path
-    file_path = os.path.join(main_app_path, self.config_file)
+    def on_disconnect(self, client: mqtt.Client, userdata: Any, flags: mqtt.DisconnectFlags,
+                      reason_code: ReasonCode, properties: Properties | None) -> None:
+        """ Callback for the disconnection from the broker (Paho reconnects automatically) """
+        print(f"MQTT Data Fetcher - Disconnected: {reason_code}")
 
-    with open(file_path, 'r') as file:
-        self.configuration_dict = yaml.safe_load(file)
+    def on_message(self, client: mqtt.Client, userdata: Any, message: mqtt.MQTTMessage) -> None:
+        """ Callback for the received messages: deserialize the telemetry and forward it to the Application Layer """
 
-    print("Read Configuration from file ({}): {}".format(self.config_file, self.configuration_dict))
-```
+        if not mqtt.topic_matches_sub(self.mqtt_topic, message.topic):
+            return
 
-The next method is associated to the initialization of the MQTT Client:
-
-```python
-def init_mqtt_client(self):
-    """ Initialize the MQTT Client
-    :return:
-    """
-
-    # Create MQTT client
-    self.client = mqtt.Client()
-    self.client.on_connect = self.on_connect
-    self.client.on_message = self.on_message
-```
-
-Then we have the definition of the callback methods for the MQTT Client with the following methods:
-
-```python
-def on_connect(self, client, userdata, flags, rc):
-    """ The callback for when the client receives a CONNACK response from the server."""
-    print("Connected to MQTT Broker with result code " + str(rc))
-    self.client.subscribe(self.mqtt_topic)
-    print(f"Subscribed to topic: {self.mqtt_topic}")
-
-def on_message(self, client, userdata, msg):
-    """ The callback for when a PUBLISH message is received from the server."""
-
-    if mqtt.topic_matches_sub(self.mqtt_topic, msg.topic):
         try:
+            payload = message.payload.decode("utf-8")
 
-            # Decode the payload
-            payload = msg.payload.decode()
+            # Extract the device ID from the topic (device/<device_id>/temperature)
+            device_id = message.topic.split('/')[1]
 
-            # Get JSON data from the message payload
-            json_data = json.loads(payload)
+            # Deserialize the payload into the TelemetryMessage DTO
+            telemetry_message = TelemetryMessage(**json.loads(payload))
+            print(f"MQTT Data Fetcher - Received message from device {device_id}: {payload}")
 
-            # Extract the device ID from the topic
-            device_id = msg.topic.split('/')[1]
-
-            # Deserialize the payload into a TelemetryMessge object
-            telemetry_message = TelemetryMessage(**json_data)
-
-            # Update the data manager with the new data
-            print(f"Received message from device {device_id}: {payload}")
-
-            # Handle the telemetry message
-            self.core_manager.handle_mqtt_device_telemetry_data(device_id, telemetry_message)
+            # Convert the DTO into the domain model of the Application Layer and handle it
+            telemetry_model = TelemetryModel(telemetry_message.timestamp,
+                                             telemetry_message.data_type,
+                                             telemetry_message.value)
+            self.core_manager.handle_device_telemetry_data(device_id, telemetry_model)
 
         except Exception as e:
-            print(f"Error processing MQTT message: {str(e)}")
+            print(f"MQTT Data Fetcher - Error processing message on {message.topic}: {e}")
+
+    def start(self) -> None:
+        """ Connect to the MQTT Broker and start the Paho network loop in a background thread """
+
+        # Set the credentials only if they are configured
+        if self.mqtt_username and self.mqtt_password:
+            print("MQTT Data Fetcher - Setting username and password ...")
+            self.client.username_pw_set(self.mqtt_username, self.mqtt_password)
+
+        # connect_async() does not block: the connection (and the retries if the broker is not available yet)
+        # are managed by the network loop started by loop_start()
+        print(f"MQTT Data Fetcher - Connecting to {self.mqtt_broker_host}:{self.mqtt_broker_port} ...")
+        self.client.connect_async(self.mqtt_broker_host, self.mqtt_broker_port, 60)
+        self.client.loop_start()
+
+    def stop(self) -> None:
+        """ Disconnect from the MQTT Broker and stop the network loop """
+        self.client.disconnect()
+        self.client.loop_stop()
+        print("MQTT Data Fetcher stopped")
 ```
 
-Last but not least we have the method to start the MQTT Data Fetcher on a separate thread and trigger the 
-connection to the MQTT Broker and the loop to keep the connection alive and start receiving messages:
-
-```python
-def connect(self):
-    """ Connect to the MQTT Broker and start the loop """
-
-    # Check if username and password are provided
-    if self.mqtt_username and self.mqtt_password:
-        print("Setting username and password ...")
-        self.client.username_pw_set(self.mqtt_username, self.mqtt_password)
-
-    # Connect to MQTT Broker
-    print("Connecting to MQTT Broker ...")
-    self.client.connect(self.mqtt_broker_host, self.mqtt_broker_port, 60)
-
-    # Start the MQTT loop
-    print("Starting MQTT Loop ...")
-    self.client.loop_forever()
-
-def start(self):
-    self.fetcher_thread = threading.Thread(target=self.connect)
-    self.fetcher_thread.start()
-```
-
-The MQTT Data Fetcher uses a configuration file to read the MQTT Broker configuration and username/password information.
-Create a `config` folder and add a new file named `mqtt_fetcher_conf.yaml` with the following content:
+The MQTT Data Fetcher reads the MQTT Broker configuration, the client id and the optional username/password from a
+configuration file. Create the `config` folder in the project root and add the file `mqtt_fetcher_conf.yaml` with the
+following content:
 
 ```yaml
+# MQTT Data Fetcher configuration
 broker_ip: "127.0.0.1"
 broker_port: 1883
+# Unique MQTT client id of the fetcher
+client_id: "iot-monolithic-laboratory-fetcher"
+# Optional credentials (null if the broker does not require authentication)
 username: null
 password: null
+# Topic filter of the device telemetry (device/<device_id>/temperature)
 target_telemetry_topic: "device/+/temperature"
 ```
 
 #### HTTP API Server
 
-The HTTP API Server (based on FluskRESTful) is responsible for exposing RESTful API endpoints to interact with the system programmatically.
+The HTTP API Server (based on Flask-RESTful) is responsible for exposing RESTful API endpoints to interact with the system programmatically.
 In this simple implementation, we will create a single endpoint to read telemetry data from an IoT device.
 
-Create a folder `api` folder in the `communication` folder and then an additional subfolder `resources`.
-In the `resources` folder add a new file named `telemetry_data_resource.py` representing the RESTful Telemetry Data
-Resource with the following content:
+Create the folder `communication/api/resources` and add the file `telemetry_data_resource.py` representing the RESTful
+Telemetry Data Resource with the following content:
 
 ```python
-from flask_restful import Resource, reqparse
-from application.core_manager import CoreManager
+from typing import Any
+
+from flask_restful import Resource
+
+from iot_monolithic_laboratory.application.core_manager import CoreManager
+
 
 class TelemetryDataResource(Resource):
     """Resource to handle the Telemetry Data of a specific Device"""
 
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs: Any) -> None:
         # Inject the CoreManager instance
         self.core_manager: CoreManager = kwargs['core_manager']
 
-    def get(self, device_id):
+    def get(self, device_id: str) -> Any:
         """GET Request to retrieve the Telemetry Data of a target device"""
 
         device_telemetry_data = self.core_manager.get_telemetry_data_by_device_id(device_id)
 
-        if device_telemetry_data is not None:
-            result_location_list = []
-
-            # Iterate over the telemetry data to build a serializable telemetry data list
-            # transforming the telemetry data into a dictionary. Then it will be Flask to serialize it into JSON
-            for telemetry_data in device_telemetry_data:
-                result_location_list.append(telemetry_data.__dict__)
-
-            return result_location_list, 200  # return data and 200 OK code
-        else:
+        if device_telemetry_data is None:
             return {'error': "Device Not Found !"}, 404
+
+        # Build a serializable list transforming each telemetry data into a dictionary:
+        # Flask-RESTful then serializes it into JSON
+        telemetry_data_list = [telemetry_data.__dict__ for telemetry_data in device_telemetry_data]
+
+        return telemetry_data_list, 200
 ```
 
-Then we can create the HTTP API Server in the `communication/api` folder creating a new file `rest_api_server.py`.
-This file will contain a class handling the RESTful API endpoints for the system and allowing
-its execution (as already done for the MQTT Data Fetcher) in a separate thread.
-
-The first part of the class is the following:
+Then create the HTTP API Server in the `communication/api` folder with the file `rest_api_server.py`.
+The class registers the resource on the configured prefix and runs the HTTP server in a separate thread.
+The server is created with `make_server()` of Werkzeug (the WSGI library used by Flask): differently from
+`app.run()`, the returned server object provides a `shutdown()` method, used by `stop()` to terminate the server
+cleanly when the application is stopped.
 
 ```python
-from flask import Flask, request
-from flask_restful import Api
-from application.core_manager import CoreManager
-from communication.api.resources.telemetry_data_resource import TelemetryDataResource
 import threading
-import yaml
-import os
+from typing import Any
+
+from flask import Flask
+from flask_restful import Api
+from werkzeug.serving import BaseWSGIServer, make_server
+
+from iot_monolithic_laboratory.application.core_manager import CoreManager
+from iot_monolithic_laboratory.communication.api.resources.telemetry_data_resource import TelemetryDataResource
+from iot_monolithic_laboratory.config.config_loader import ConfigLoader
+
 
 class RestApiServer:
     """
-    RESTful API Server designed to manage the Inventory of IoT Devices
+    RESTful API Server exposing the telemetry data collected from the IoT devices.
+    The HTTP server runs in a dedicated thread, so it can be executed together with the other modules of the monolith.
     """
 
-    # Default Endpoint Prefix
-    DEFAULT_ENDPOINT_PREFIX = "/api/iot/inventory"
+    # Default configuration, used for the parameters not defined in the configuration file
+    DEFAULT_CONFIGURATION: dict[str, Any] = {
+        "rest": {
+            "api_prefix": "/api/iot/inventory",
+            "host": "0.0.0.0",
+            "port": 7070
+        }
+    }
 
-    def __init__(self, config_file: str, core_manager: CoreManager):
+    def __init__(self, config_file: str, core_manager: CoreManager) -> None:
 
-        # Initialize REST API Server and Flask Application to None
-        # They will be initialized in the init_rest_api method
-        self.api = None
-        self.app = None
-
-        # Server Thread
-        self.server_thread = None
-
-        # Configuration File Path
-        self.config_file = config_file
-
-        # Data Manager
+        # Core Manager of the Application Layer (the only layer the Communication Layer interacts with)
         self.core_manager = core_manager
 
-        # Set a default configuration
-        self.configuration_dict = {
-            "rest":{
-                "api_prefix": self.DEFAULT_ENDPOINT_PREFIX,
-                "host": "0.0.0.0",
-                "port": 7070
-            }
-        }
+        # Read the configuration from the target configuration file
+        self.configuration_dict = ConfigLoader.load(config_file, self.DEFAULT_CONFIGURATION)
 
-        # Read Configuration from target Configuration File Path
-        self.read_configuration_file()
+        # HTTP server and its thread (created by start())
+        self.http_server: BaseWSGIServer | None = None
+        self.server_thread: threading.Thread | None = None
 
-        # Initialize REST API
+        # Initialize the Flask application and the REST API
+        self.app = Flask(__name__)
+        self.api = Api(self.app)
         self.init_rest_api()
+
+    def init_rest_api(self) -> None:
+        """ Initialize the REST API with resources and endpoints """
+
+        api_prefix = self.configuration_dict['rest']['api_prefix']
+
+        # Telemetry Data of a specific device
+        self.api.add_resource(TelemetryDataResource, api_prefix + '/device/<string:device_id>/telemetry',
+                              resource_class_kwargs={'core_manager': self.core_manager},
+                              endpoint="device_telemetry_data",
+                              methods=['GET'])
+
+    def start(self) -> None:
+        """ Start the REST API Server in a dedicated thread """
+
+        host = self.configuration_dict['rest']['host']
+        port = self.configuration_dict['rest']['port']
+
+        # make_server() binds the socket immediately: an error (e.g., port already in use) is raised here
+        self.http_server = make_server(host, port, self.app, threaded=True)
+        self.server_thread = threading.Thread(target=self.http_server.serve_forever, name="rest-api-server", daemon=True)
+        self.server_thread.start()
+
+        print(f"RESTful API Server running on http://{host}:{port}{self.configuration_dict['rest']['api_prefix']}")
+
+    def stop(self) -> None:
+        """ Stop the REST API Server and wait for its thread """
+        if self.http_server is not None:
+            self.http_server.shutdown()
+        if self.server_thread is not None:
+            self.server_thread.join()
+        print("RESTful API Server stopped")
 ```
 
-Then we need to add the following method to handle the REST API configuration file (in Yaml):
-
-```python
-def read_configuration_file(self):
-    """ Read Configuration File for the REST API Server
-     :return:
-    """
-
-    # Get the main communication directory
-    main_app_path = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-    # Construct the file path
-    file_path = os.path.join(main_app_path, self.config_file)
-
-    with open(file_path, 'r') as file:
-        self.configuration_dict = yaml.safe_load(file)
-
-    print("Read Configuration from file ({}): {}".format(self.config_file, self.configuration_dict))
-```
-
-The next method is associated to the initialization of the REST API Server:
-
-```python
-def init_rest_api(self):
-    """ Initialize REST API with resources and endpoints
-    :return:
-    """
-
-    # Create a new Flask Application and the REST API from Flask Restful
-    self.app = Flask(__name__)
-    self.api = Api(self.app)
-
-    # Add Resources and Endpoints
-    self.api.add_resource(TelemetryDataResource, self.configuration_dict['rest']['api_prefix'] + '/device/<string:device_id>/telemetry',
-                          resource_class_kwargs={'core_manager': self.core_manager},
-                          endpoint="device_telemetry_data",
-                          methods=['GET'])
-```
-
-The last methods are associated to the start of the REST API Server on a separate thread and the trigger of the Flask Application:
-
-```python
-def run_server(self):
-    """ Start the REST API Server """
-    self.app.run(host=self.configuration_dict['rest']['host'], port=self.configuration_dict['rest']['port'])
-
-def start(self):
-    self.server_thread = threading.Thread(target=self.run_server)
-    self.server_thread.start()
-
-def stop(self):
-    """ Stop the REST API Server (Flask Method)
-    In this code, request.environ.get('werkzeug.server.shutdown')
-    retrieves the shutdown function from the environment.
-    If the function is not found, it raises a RuntimeError,
-    indicating that the server is not running with Werkzeug.
-    If the function is found, it is called to shut down the server."""
-
-    # Shutdown the server
-    func = request.environ.get('werkzeug.server.shutdown')
-    if func is None:
-        raise RuntimeError('Not running with the Werkzeug Server')
-
-    # Call the shutdown function
-    func()
-
-    # Wait for the server thread to join
-    self.server_thread.join()
-```
-
-As already done for the MQTT Data Fetcher, the REST API Server uses a configuration file to read the REST API configuration.
-Add a new file named `api_conf.yaml` in the `config` folder with the following content:
+As already done for the MQTT Data Fetcher, the REST API Server uses a configuration file.
+Add the file `api_conf.yaml` in the `config` folder with the following content:
 
 ```yaml
+# RESTful API Server configuration
 rest:
   api_prefix: "/api/iot/inventory"
   host: "0.0.0.0"
   port: 7070
 ```
 
-### Web Server
+#### Web Server
 
 The Web Server is responsible for serving the web interface to users, handling incoming HTTP requests, and rendering the web pages.
-We use Flask to create a simple web server that serves static and dynamic content to users through the file
-associated to the Presentation Layer.
+We use Flask to create a simple web server that serves dynamic content to users through the templates
+of the Presentation Layer.
 
-Create a new folder `web` in the `communication` folder and add a new file named `web_server.py` with the following initial content:
+Create the folder `communication/web` and add the file `web_server.py` with the following content. The structure is the
+same of the REST API Server, while the `telemetry()` method retrieves the telemetry data from the Core Manager and
+renders the `telemetry.html` template:
 
 ```python
+import threading
+from pathlib import Path
+from typing import Any
+
+from flask import Flask, render_template
+from werkzeug.serving import BaseWSGIServer, make_server
+
+from iot_monolithic_laboratory.application.core_manager import CoreManager
+from iot_monolithic_laboratory.config.config_loader import ConfigLoader
+
+# Folder of the Presentation Layer templates: src/iot_monolithic_laboratory/presentation
+TEMPLATE_DIR = Path(__file__).resolve().parents[2] / "presentation"
+
+
 class WebServer:
-    """Web Server Class for the Flask Web Server handling Web Pages assocaited
-    to the Presentation Layer of the Architecture"""
+    """
+    Web Server of the Communication Layer: it renders the HTML templates of the Presentation Layer
+    with the data provided by the Application Layer. The HTTP server runs in a dedicated thread.
+    """
 
-    def __init__(self, config_file:str, core_manager: CoreManager):
+    # Default configuration, used for the parameters not defined in the configuration file
+    DEFAULT_CONFIGURATION: dict[str, Any] = {
+        "web": {
+            "host": "0.0.0.0",
+            "port": 7071
+        }
+    }
 
-        # Server Thread
-        self.server_thread = None
+    def __init__(self, config_file: str, core_manager: CoreManager) -> None:
 
-        # Save the data manager
+        # Core Manager of the Application Layer
         self.core_manager = core_manager
 
-        # Save the configuration file
-        self.config_file = config_file
+        # Read the configuration from the target configuration file
+        self.configuration_dict = ConfigLoader.load(config_file, self.DEFAULT_CONFIGURATION)
 
-        # Get the main communication directory
-        main_app_path = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        # HTTP server and its thread (created by start())
+        self.http_server: BaseWSGIServer | None = None
+        self.server_thread: threading.Thread | None = None
 
-        # Construct the file path
-        template_dir = os.path.join(main_app_path, 'presentation')
-
-        # Set a default configuration
-        self.configuration_dict = {
-            "web": {
-                "host": "0.0.0.0",
-                "port": 7071
-            }
-        }
-
-        # Read Configuration from target Configuration File Path
-        self.read_configuration_file()
-
-        # Create the Flask app
-        self.app = Flask(__name__, template_folder=template_dir)
+        # Create the Flask app using the templates of the Presentation Layer
+        self.app = Flask(__name__, template_folder=str(TEMPLATE_DIR))
 
         # Add URL rules to the Flask app mapping the URL to the function
         self.app.add_url_rule('/device/<string:device_id>/telemetry', 'telemetry', self.telemetry)
+
+    def telemetry(self, device_id: str) -> str:
+        """ Get telemetry data for a specific device and render the telemetry.html template"""
+        telemetry_data = self.core_manager.get_telemetry_data_by_device_id(device_id)
+        return render_template('telemetry.html', telemetry_data=telemetry_data, device_id=device_id)
+
+    def start(self) -> None:
+        """ Start the Web Server in a dedicated thread """
+
+        host = self.configuration_dict['web']['host']
+        port = self.configuration_dict['web']['port']
+
+        # make_server() binds the socket immediately: an error (e.g., port already in use) is raised here
+        self.http_server = make_server(host, port, self.app, threaded=True)
+        self.server_thread = threading.Thread(target=self.http_server.serve_forever, name="web-server", daemon=True)
+        self.server_thread.start()
+
+        print(f"Web Server running on http://{host}:{port}/device/<device_id>/telemetry")
+
+    def stop(self) -> None:
+        """ Stop the Web Server and wait for its thread """
+        if self.http_server is not None:
+            self.http_server.shutdown()
+        if self.server_thread is not None:
+            self.server_thread.join()
+        print("Web Server stopped")
 ```
 
-Then we need to add the following method to handle the Web Server configuration file (in Yaml):
-
-```python
-def read_configuration_file(self):
-    """ Read Configuration File for the Web Server
-     :return:
-    """
-
-    # Get the main communication directory
-    main_app_path = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-    # Construct the file path
-    file_path = os.path.join(main_app_path, self.config_file)
-
-    with open(file_path, 'r') as file:
-        self.configuration_dict = yaml.safe_load(file)
-    
-    print("Read Configuration from file ({}): {}".format(self.config_file, self.configuration_dict))
-```
-
-The next step is to add a method to render the telemetry web template after retrieving the telemetry data from the core manager:
-
-```python
-def telemetry(self, device_id):
-    """ Get telemetry data for a specific device and render the telemetry.html template"""
-    telemetry_data = self.core_manager.get_telemetry_data_by_device_id(device_id)
-    return render_template('telemetry.html', telemetry_data=telemetry_data, device_id=device_id)
-```
-
-The last methods are associated to the start of the Web Server on a separate thread and the trigger of the Flask Application:
-
-```python
-def run_server(self):
-    """ Run the Flask Web Server"""
-    self.app.run(host=self.configuration_dict['web']['host'], port=self.configuration_dict['web']['port'])
-
-def start(self):
-    self.server_thread = threading.Thread(target=self.run_server)
-    self.server_thread.start()
-
-def stop(self):
-    """ Stop the REST API Server (Flask Method)
-    In this code, request.environ.get('werkzeug.server.shutdown')
-    retrieves the shutdown function from the environment.
-    If the function is not found, it raises a RuntimeError,
-    indicating that the server is not running with Werkzeug.
-    If the function is found, it is called to shut down the server."""
-
-    # Shutdown the server
-    func = request.environ.get('werkzeug.server.shutdown')
-    if func is None:
-        raise RuntimeError('Not running with the Werkzeug Server')
-
-    # Call the shutdown function
-    func()
-
-    # Wait for the server thread to join
-    self.server_thread.join()
-```
-
-As already done for the MQTT Data Fetcher and the REST API Server, the Web Server uses a configuration file to read the Web Server configuration.
-Add a new file named `web_conf.yaml` in the `config` folder with the following content:
+Add the file `web_conf.yaml` in the `config` folder with the following content:
 
 ```yaml
+# Web Server configuration
 web:
   host: "0.0.0.0"
   port: 7071
 ```
 
-## Presentation Layer
+### Presentation Layer
 
 In this example, the Presentation Layer is represented by a simple web interface that using Flask web templates
-renders the data received from the Application Layer (for additional info you can visit: [https://flask.palletsprojects.com/en/stable/tutorial/templates/](https://flask.palletsprojects.com/en/stable/tutorial/templates/)). The web interface is focused only on the visualization of 
+renders the data received from the Application Layer (for additional info you can visit: [https://flask.palletsprojects.com/en/stable/tutorial/templates/](https://flask.palletsprojects.com/en/stable/tutorial/templates/)). The web interface is focused only on the visualization of
 the telemetry data of a target device identified through the device ID and specified in the URL.
-Flask templates uses the Jinja2 template engine to render dynamic content in the web pages.
-Some example are available at the following link: [https://jinja.palletsprojects.com/en/3.0.x/templates/](https://jinja.palletsprojects.com/en/3.0.x/templates/).
+Flask templates use the Jinja2 template engine to render dynamic content in the web pages.
+Some examples are available at the following link: [https://jinja.palletsprojects.com/en/stable/templates/](https://jinja.palletsprojects.com/en/stable/templates/).
 
-Create a new folder `presentation` in the main directory and add the file `telemetry.html` with the following content:
+Create the folder `presentation` in the package and add the file `telemetry.html` with the following content:
 
 ```html
 <!DOCTYPE html>
@@ -678,100 +811,117 @@ Create a new folder `presentation` in the main directory and add the file `telem
 </html>
 ```
 
-## Main Application
+### Main Application
 
-The main application orchestrates the interactions between different layers of the system, 
-initializing the components, and starting the threads for the Communication Layer components.
+The main application orchestrates the interactions between different layers of the system, creating the layers from
+the bottom to the top and starting the threads of the Communication Layer components. The main thread then waits
+until the application is stopped with `CTRL+C`, and stops all the modules.
 
-Create a new file named `main.py` in the main directory with the following content:
+Create the file `main.py` in the package with the following content:
 
 ```python
-from communication.api.rest_api_server import RestApiServer
-from communication.web.web_server import WebServer
-from communication.mqtt.mqtt_data_fetcher import MqttDataFetcher
-from application.core_manager import CoreManager
-from data.data_manager import DataManager
+# Entry point of the IoT Monolithic Application. From the project root run: uv run iot-monolith
+#
+# The monolith is a single process that creates the layers of the n-Tier architecture from the bottom to the top:
+# Data Access Layer (DataManager) -> Application Layer (CoreManager) -> Communication Layer (RestApiServer,
+# WebServer, MqttDataFetcher). The three modules of the Communication Layer run in parallel in dedicated threads.
 
+import threading
+
+from iot_monolithic_laboratory.application.core_manager import CoreManager
+from iot_monolithic_laboratory.communication.api.rest_api_server import RestApiServer
+from iot_monolithic_laboratory.communication.mqtt.mqtt_data_fetcher import MqttDataFetcher
+from iot_monolithic_laboratory.communication.web.web_server import WebServer
+from iot_monolithic_laboratory.data.data_manager import DataManager
+
+# Configuration files (relative to the project root or to the working directory)
 API_CONFIG_FILE = "config/api_conf.yaml"
 WEB_CONFIG_FILE = "config/web_conf.yaml"
 MQTT_CONFIG_FILE = "config/mqtt_fetcher_conf.yaml"
 
-if __name__ == '__main__':
 
-    # Data Manager initialization
+def main() -> None:
+
+    # Data Access Layer: Data Manager initialization
     data_manager = DataManager()
 
-    # Create the Core Manager with the Data Manager reference
+    # Application Layer: Core Manager with the Data Manager reference
     core_manager = CoreManager(data_manager)
 
-    # Create RESTful API Server
+    # Communication Layer: RESTful API Server, Web Server and MQTT Data Fetcher
     rest_api_server = RestApiServer(API_CONFIG_FILE, core_manager)
-
-    # Run RESTful API Server
-    rest_api_server.start()
-
-    # Create Web Server
     web_server = WebServer(WEB_CONFIG_FILE, core_manager)
-
-    # Run Web Server
-    web_server.start()
-
-    # Create MQTT Data Fetcher
     mqtt_data_fetcher = MqttDataFetcher(MQTT_CONFIG_FILE, core_manager)
 
-    # Run MQTT Data Fetcher
+    # Start the modules of the Communication Layer, each one in its own thread
+    rest_api_server.start()
+    web_server.start()
     mqtt_data_fetcher.start()
+
+    print("IoT Monolithic Application running (CTRL+C to stop)")
+
+    try:
+        # Keep the main thread alive while the modules are running
+        threading.Event().wait()
+    except KeyboardInterrupt:
+        print("Stopping the IoT Monolithic Application ...")
+    finally:
+        mqtt_data_fetcher.stop()
+        web_server.stop()
+        rest_api_server.stop()
+
+
+if __name__ == "__main__":
+    main()
 ```
+
+The `main()` function is exposed as the `iot-monolith` command in the `[project.scripts]` section of `pyproject.toml`.
 
 ## Testing
 
-### Use MQTT Broker with Credentials
+### MQTT Testers
 
-The default code for the example has been designed to work with a local MQTT Broker.
-If you work with a different broker that require authentication with credentials and/or dedicated topic usage
-according to specific ACL (Access Contro List) configuration you have to:
+The `tester/mqtt` package contains two external clients, independent of the application, that use the same broker
+configuration of the MQTT Data Fetcher (`config/mqtt_fetcher_conf.yaml`):
 
-- Change the `mqtt_data_fetcher.py` to support:
-  - Authentication 
-  - Topic Structure for the subscription
-- Change MQTT Tester application such as `test/mqtt-tester/json_producer_default_device.py` to support:
-  - Authentication 
-  - Topic Structure for publishing
-
-In both cases the MQTT Paho lines of code to specify the user credentials are:
-
-```python
-# Set Account Username & Password
-mqtt_client.username_pw_set(username, password)
-```
-
-Then both in the subscription and publish parts you have to use the correct topic structure (if required by the broker).
+- `json_producer.py`: an emulated device that publishes a temperature measurement every 5 seconds on
+  `device/<device_id>/temperature` (the device id can be passed as argument, default `d0001`). It waits for the
+  `on_connect` callback before starting to publish;
+- `json_consumer.py`: a consumer that subscribes to `device/+/temperature` and prints all the received telemetry.
 
 ### Running the Application
 
-To simulate the data fetching from IoT devices, you can publish messages to the MQTT broker as an already registered device
-`d0001` using the script `test/mqtt/json_producer_default_device.py`.
+Each process is exposed as a command declared in the `[project.scripts]` section of `pyproject.toml`:
 
-In order to test the application you can run the `main.py` file that run the application activating 
-each layer of the architecture and run in parallel the different modules as independent threads.
+| Command                   | Module                                                | Description                                      |
+|---------------------------|-------------------------------------------------------|--------------------------------------------------|
+| `iot-monolith`            | `iot_monolithic_laboratory.main`                      | The monolithic application                       |
+| `mqtt-device-producer`    | `iot_monolithic_laboratory.tester.mqtt.json_producer` | Emulated device publishing temperature telemetry |
+| `mqtt-telemetry-consumer` | `iot_monolithic_laboratory.tester.mqtt.json_consumer` | Consumer printing the telemetry of all devices   |
 
-After receiving the telemetry data, you can access the web interface to view the telemetry data for the device `d0001`
+With the MQTT Broker running, from the project root start the application:
 
-Once the application is running you can access the web interface by opening a web browser and navigating to the following URLs:
+```bash
+uv run iot-monolith
+```
+
+In another terminal, simulate the device `d0001` (and, optionally, other devices with different ids):
+
+```bash
+uv run mqtt-device-producer
+uv run mqtt-device-producer d0002
+```
+
+After receiving the telemetry data, you can access the web interface to view the telemetry data of the device `d0001`:
 
 - [http://localhost:7071/device/d0001/telemetry](http://localhost:7071/device/d0001/telemetry): Shows telemetry data for a selected device
-
-If you want to create telemetry data for additional devices or locations you can have a look at the following test scripts:
-
-- `test/mqtt/json_producer_device_1.py`: Publishes telemetry data for a new test device with a different Id
-- `test/mqtt/json_producer_device_2.py`: Publishes telemetry data for a new test device with a different Id
 
 Example of the Web Interface and Presentation Layer are the following:
 
 ![Telemetry Data](images/telemetry_device_data.png)
 
 It is also possible to retrieve the telemetry data for a specific device using the RESTful API endpoint.
-Send a GET Request to the following URL using a REST client (e.g., PostMan) or a web browser:
+Send a GET Request to the following URL using a REST client (e.g., Postman), `curl` or a web browser:
 
 - HTTP Method: GET
 - Payload: None
@@ -790,20 +940,30 @@ An example of the response is the following:
         "timestamp": 1731877695,
         "data_type": "TEMPERATURE_SENSOR",
         "value": 27.328035770773965
-    },
-    {
-        "timestamp": 1731877700,
-        "data_type": "TEMPERATURE_SENSOR",
-        "value": 39.250863470452934
-    },
-    {
-        "timestamp": 1731877705,
-        "data_type": "TEMPERATURE_SENSOR",
-        "value": 29.080063742188734
     }
 ]
 ```
 
-Through PostMan the result is the following:
+A device that has never sent telemetry data is answered with `404 Not Found`.
+
+Through Postman the result is the following:
 
 ![Telemetry Data](images/postman_telemetry.png)
+
+### Use MQTT Broker with Credentials
+
+The default configuration works with a local MQTT Broker without authentication. To use a broker that requires
+credentials, set `username` and `password` in `config/mqtt_fetcher_conf.yaml`: they are used both by the MQTT Data
+Fetcher and by the MQTT testers, that read the broker parameters from the same file.
+
+If the broker also restricts the topics that each account can use (ACL), update the topic structure accordingly:
+the subscription filter `target_telemetry_topic` of the fetcher and the `topic_template` variable of the
+`json_producer.py` tester.
+
+### Type Hints
+
+The code uses Python **type hints** (Python >= 3.10 syntax). To check the code with [mypy](https://mypy.readthedocs.io/) run:
+
+```bash
+uv run --with mypy mypy src/iot_monolithic_laboratory --ignore-missing-imports
+```

@@ -1,0 +1,24 @@
+[project]
+name = "iot-monolithic-arch-laboratory"
+version = "0.1.0"
+description = "IoT Monolithic Architecture Laboratory - n-Tier IoT application collecting and exposing the telemetry of IoT devices"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "flask>=2.3,<3",
+    "flask-restful>=0.3.10",
+    "paho-mqtt>=2.1,<3",
+    "pyyaml>=6.0",
+]
+
+[project.scripts]
+iot-monolith = "iot_monolithic_laboratory.main:main"
+mqtt-device-producer = "iot_monolithic_laboratory.tester.mqtt.json_producer:main"
+mqtt-telemetry-consumer = "iot_monolithic_laboratory.tester.mqtt.json_consumer:main"
+
+[build-system]
+requires = ["uv_build>=0.13.0,<0.14"]
+build-backend = "uv_build"
+
+[tool.uv.build-backend]
+module-name = "iot_monolithic_laboratory"
